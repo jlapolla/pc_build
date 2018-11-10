@@ -1,3 +1,22 @@
+import pytz
+
+
+import csv
+import datetime
+
+
+def input_dt(time_string, fmt, tz):
+    naive_dt = datetime.datetime.strptime(time_string, fmt) # Parse naive_dt
+    aware_dt = tz.localize(naive_dt) # Assume naive_dt is in timezone tz
+    return aware_dt.astimezone(pytz.utc) # Convert to utc timezone
+
+
+def output_dt(aware_dt, fmt, tz):
+    out_dt = aware_dt.astimezone(tz)
+    normal_dt = tz.normalize(out_dt)
+    return normal_dt.strftime(fmt)
+
+
 class Price:
 
     def __init__(self, amount, **kwargs):
@@ -16,6 +35,15 @@ class Price:
         """
         return self._url
 
+    def as_dict(self):
+        d = {}
+        d['amount'] = self._amount
+        if self._date is not None:
+            d['date'] = self._date
+        if self._url is not None:
+            d['url'] = self._url
+        return d
+
 
 class CpuScore:
 
@@ -32,6 +60,13 @@ class CpuScore:
 
     def get_date(self):
         return self._date
+
+    def as_dict(self):
+        d = {}
+        d['mt_score'] = self._mt_score
+        d['st_score'] = self._st_score
+        if self._date is not None:
+            d['date'] = self._date
 
 
 class CPU:
@@ -225,3 +260,45 @@ class FpsStudy:
 
     def get_application(self):
         return self._application
+
+
+class CpuCsvReader:
+
+    FLD_PRICE_AMOUNT = 'price'
+    FLD_PRICE_DATE = 'price_date'
+    FLD_PRICE_URL = 'price_url'
+
+    FLD_SCORE_MT = 'mt_score'
+    FLD_SCORE_ST = 'st_score'
+    FLD_SCORE_DATE = 'score_date'
+
+    FLD_NAME = 'name'
+
+    def __init__(self, infile):
+        self._reader = csv.DictReader(infile)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        d = next(self._reader)
+
+        price = None
+        if d.get(self._FLD_PRICE_AMOUNT) is not None:
+            price = Price(
+                d[self._FLD_PRICE_AMOUNT],
+                date=d.get(self._FLD_PRICE_DATE),
+                url=d.get(self._FLD_PRICE_URL),
+                )
+
+        score = CpuScore(
+            mt_score=d[self._FLD_SCORE_MT],
+            st_score=d[self._FLD_SCORE_ST],
+            date=d.get(self._FLD_SCORE_DATE),
+            )
+
+        return CPU(
+            name=d[self._FLD_NAME],
+            score=score,
+            price=price,
+            )
