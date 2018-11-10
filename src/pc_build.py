@@ -76,7 +76,7 @@ class CpuScore:
         return d
 
 
-class CPU:
+class Cpu:
 
     def __init__(self, **kwargs):
         self._name = kwargs['name']
@@ -312,7 +312,7 @@ class CpuCsvReader:
             date=input_dt(self._get(d, self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
             )
 
-        return CPU(
+        return Cpu(
             name=self._filter(d[self._FLD_NAME]),
             score=score,
             price=price,
