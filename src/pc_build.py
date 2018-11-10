@@ -337,3 +337,43 @@ class CpuCsvReader:
             for cpu in cls(infile):
                 sys.stdout.write(repr(cpu.as_dict()))
                 sys.stdout.write('\n')
+
+
+class GpuCsvReader:
+
+    def __init__(self, infile):
+        self._reader = csv.DictReader(infile)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        d = next(self._reader)
+
+        price = None
+        if self._get(d, self._FLD_PRICE_AMOUNT) is not None:
+            price = Price(
+                self._filter(d[self._FLD_PRICE_AMOUNT]),
+                date=input_dt(self._get(d, self._FLD_PRICE_DATE), '%m/%d/%y', pytz.utc),
+                url=self._get(d, self._FLD_PRICE_URL),
+                )
+
+        score = GpuScore(
+            g3d_score=self._filter(d[self._FLD_G3D_SCORE]),
+            date=input_dt(self._get(d, self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
+            )
+
+        return Gpu(
+            name=self._filter(d[self._FLD_NAME]),
+            score=score,
+            price=price,
+            )
+
+    def _get(self, d, key):
+        value = d.get(key)
+        return self._filter(value)
+
+    def _filter(self, value):
+        if value == '':
+            return None
+        return value
