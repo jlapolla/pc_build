@@ -327,13 +327,13 @@ class CpuCsvReader:
             return None
         return value
 
+    @classmethod
+    def dump_cpu_file(cls, csv_filename):
+        """Read and output all Cpu's in csv_filename.
 
-def dump_cpu_file(csv_filename):
-    """Read and output all Cpu's in csv_filename.
-
-    For manual testing purposes.
-    """
-    with io.open(csv_filename) as infile:
-        for cpu in CpuCsvReader(infile):
-            sys.stdout.write(repr(cpu.as_dict()))
-            sys.stdout.write('\n')
+        For manual testing purposes.
+        """
+        with io.open(csv_filename) as infile:
+            for cpu in cls(infile):
+                sys.stdout.write(repr(cpu.as_dict()))
+                sys.stdout.write('\n')
