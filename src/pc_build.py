@@ -3,6 +3,8 @@ import pytz
 
 import csv
 import datetime
+import io
+import sys
 
 
 def input_dt(time_string, fmt, tz):
@@ -71,6 +73,7 @@ class CpuScore:
         d['st_score'] = self._st_score
         if self._date is not None:
             d['date'] = self._date
+        return d
 
 
 class CPU:
@@ -88,6 +91,14 @@ class CPU:
 
     def get_score(self):
         return self._score
+
+    def as_dict(self):
+        d = {}
+        d['name'] = self._name
+        d['score'] = self._score.as_dict()
+        if self._price is not None:
+            d['price'] = self._price.as_dict()
+        return d
 
 
 class GpuScore:
@@ -268,15 +279,15 @@ class FpsStudy:
 
 class CpuCsvReader:
 
-    FLD_PRICE_AMOUNT = 'price'
-    FLD_PRICE_DATE = 'price_date'
-    FLD_PRICE_URL = 'price_url'
+    _FLD_PRICE_AMOUNT = 'price'
+    _FLD_PRICE_DATE = 'price_date'
+    _FLD_PRICE_URL = 'price_url'
 
-    FLD_SCORE_MT = 'mt_score'
-    FLD_SCORE_ST = 'st_score'
-    FLD_SCORE_DATE = 'score_date'
+    _FLD_SCORE_MT = 'mt_score'
+    _FLD_SCORE_ST = 'st_score'
+    _FLD_SCORE_DATE = 'score_date'
 
-    FLD_NAME = 'name'
+    _FLD_NAME = 'name'
 
     def __init__(self, infile):
         self._reader = csv.DictReader(infile)
@@ -288,21 +299,37 @@ class CpuCsvReader:
         d = next(self._reader)
 
         price = None
-        if d.get(self._FLD_PRICE_AMOUNT) is not None:
+        if self._get(d, self._FLD_PRICE_AMOUNT) is not None:
             price = Price(
-                d[self._FLD_PRICE_AMOUNT],
-                date=input_dt(d.get(self._FLD_PRICE_DATE), '%m/%d/%y', pytz.utc),
-                url=d.get(self._FLD_PRICE_URL),
+                self._filter(d[self._FLD_PRICE_AMOUNT]),
+                date=input_dt(self._get(d, self._FLD_PRICE_DATE), '%m/%d/%y', pytz.utc),
+                url=self._get(d, self._FLD_PRICE_URL),
                 )
 
         score = CpuScore(
-            mt_score=d[self._FLD_SCORE_MT],
-            st_score=d[self._FLD_SCORE_ST],
-            date=input_dt(d.get(self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
+            mt_score=self._filter(d[self._FLD_SCORE_MT]),
+            st_score=self._filter(d[self._FLD_SCORE_ST]),
+            date=input_dt(self._get(d, self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
             )
 
         return CPU(
-            name=d[self._FLD_NAME],
+            name=self._filter(d[self._FLD_NAME]),
             score=score,
             price=price,
             )
+
+    def _get(self, d, key):
+        value = d.get(key)
+        return self._filter(value)
+
+    def _filter(self, value):
+        if value == '':
+            return None
+        return value
+
+
+def dump_cpu(csv_filename):
+    with io.open(csv_filename) as infile:
+        for cpu in CpuCsvReader(infile):
+            sys.stdout.write(repr(cpu.as_dict()))
+            sys.stdout.write('\n')
