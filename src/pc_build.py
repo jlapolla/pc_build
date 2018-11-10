@@ -216,3 +216,12 @@ class FpsStudy:
         self._source = kwargs['source']
         self._application = kwargs['application']
         self._data = list(kwargs['data'])
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def get_source(self):
+        return self._source
+
+    def get_application(self):
+        return self._application
