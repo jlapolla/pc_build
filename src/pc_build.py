@@ -296,6 +296,15 @@ class FpsStudy:
             """
             return self._avg_fps
 
+        def __eq__(self, other):
+            return self.__class__ is other.__class__ and self._cpu == other._cpu and self._gpu == other._gpu and self._low_fps == other._low_fps and self._avg_fps == other._avg_fps
+
+        def __ne__(self, other):
+            return not self == other
+
+        def __hash__(self):
+            return hash((self._cpu, self._gpu, self._low_fps, self._avg_fps))
+
     def __init__(self, **kwargs):
         self._source = kwargs['source']
         self._application = kwargs['application']
@@ -440,3 +449,84 @@ class GpuCsvReader:
             for gpu in cls(infile):
                 sys.stdout.write(repr(gpu.as_dict()))
                 sys.stdout.write('\n')
+
+
+class FpsStudyCsvReader:
+
+    def __init__(self, infile, **kwargs):
+        self._reader = csv.DictReader(infile)
+        self._cpu_dict = kwargs['cpu_dict']
+        self._gpu_dict = kwargs['gpu_dict']
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        d = next(self._reader)
+
+        point = FpsStudy.DataPoint(
+            cpu=self._cpu_dict[self._filter(d[self._FLD_CPU])],
+            gpu=self._gpu_dict[self._filter(d[self._FLD_GPU])],
+            low_fps=self._filter(d[self._FLD_LOW_FPS]),
+            avg_fps=self._filter(d[self._FLD_AVG_FPS]),
+            )
+
+        resolution = Resolution(
+            width=self._filter(d[self._FLD_RES_WIDTH]),
+            height=self._filter(d[self._FLD_RES_HEIGHT]),
+            )
+
+        quality = Quality(
+            level=self._filter(d[self._FLD_QUALITY]),
+            )
+
+        application = Application(
+            name=self._filter(d[self._FLD_APP_NAME]),
+            quality=quality,
+            resolution=resolution,
+            )
+
+        source = DataSource(
+            url=self._filter(d[self._FLD_SRC_URL]),
+            pub_date=self._get(d, self._FLD_SRC_DATE]),
+            )
+
+        return (source, application, point)
+
+    def _get(self, d, key):
+        value = d.get(key)
+        return self._filter(value)
+
+    def _filter(self, value):
+        if value == '':
+            return None
+        return value
+
+    class Context:
+
+        def __init__(self):
+            self._study_dict = {}
+
+        def read(self, infile):
+            for source, application, point in FpsStudyCsvReader(infile):
+                data_set = self._study_dict.setdefault((source, application), set())
+                data_set.add(point)
+
+        def __iter__(self):
+            return self.Iterator(self)
+
+        class Iterator:
+
+            def __init__(self, context):
+                self._it = context._study_dict.items()
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                (source, application), data_set = next(self._it)
+                return FpsStudy(
+                    source=source,
+                    application=application,
+                    data=data,
+                    )
