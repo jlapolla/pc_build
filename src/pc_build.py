@@ -343,7 +343,7 @@ class CpuCsvReader:
         return value
 
     @classmethod
-    def dump_cpu_file(cls, csv_filename):
+    def dump_file(cls, csv_filename):
         """Read and output all Cpu's in csv_filename.
 
         For manual testing purposes.
@@ -403,7 +403,7 @@ class GpuCsvReader:
         return value
 
     @classmethod
-    def dump_gpu_file(cls, csv_filename):
+    def dump_file(cls, csv_filename):
         """Read and output all Gpu's in csv_filename.
 
         For manual testing purposes.
