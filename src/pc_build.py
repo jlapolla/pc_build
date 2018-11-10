@@ -113,6 +113,13 @@ class GpuScore:
     def get_date(self):
         return self._date
 
+    def as_dict(self):
+        d = {}
+        d['g3d_score'] = self._g3d_score
+        if self._date is not None:
+            d['date'] = self._date
+        return d
+
 
 class Gpu:
 
@@ -129,6 +136,14 @@ class Gpu:
 
     def get_price(self):
         return self._price
+
+    def as_dict(self):
+        d = {}
+        d['name'] = self._name
+        d['score'] = self._score.as_dict()
+        if self._price is not None:
+            d['price'] = self._price.as_dict()
+        return d
 
 
 class DataSource:
@@ -341,6 +356,15 @@ class CpuCsvReader:
 
 class GpuCsvReader:
 
+    _FLD_PRICE_AMOUNT = 'price'
+    _FLD_PRICE_DATE = 'price_date'
+    _FLD_PRICE_URL = 'price_url'
+
+    _FLD_G3D_SCORE = 'g3d_score'
+    _FLD_SCORE_DATE = 'score_date'
+
+    _FLD_NAME = 'name'
+
     def __init__(self, infile):
         self._reader = csv.DictReader(infile)
 
@@ -377,3 +401,14 @@ class GpuCsvReader:
         if value == '':
             return None
         return value
+
+    @classmethod
+    def dump_gpu_file(cls, csv_filename):
+        """Read and output all Gpu's in csv_filename.
+
+        For manual testing purposes.
+        """
+        with io.open(csv_filename) as infile:
+            for gpu in cls(infile):
+                sys.stdout.write(repr(gpu.as_dict()))
+                sys.stdout.write('\n')
