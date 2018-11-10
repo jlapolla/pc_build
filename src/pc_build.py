@@ -200,14 +200,6 @@ class Quality:
             raise BadQualityError('invalid quality level {0}'.format(level))
         self._level = level
 
-    def get_level(self):
-        """Quality level.
-        """
-        # FIXME: Remove this accessor. A quality does not have a level; a
-        # quality IS the level. It should behave like an integer, be
-        # comparable, et cetera.
-        return self._level
-
     def __str__(self):
         return self._NAME_MAP[self._level]
 
