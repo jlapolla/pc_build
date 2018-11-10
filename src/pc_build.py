@@ -328,7 +328,7 @@ class CpuCsvReader:
         return value
 
 
-def dump_cpu(csv_filename):
+def dump_cpu_file(csv_filename):
     with io.open(csv_filename) as infile:
         for cpu in CpuCsvReader(infile):
             sys.stdout.write(repr(cpu.as_dict()))
