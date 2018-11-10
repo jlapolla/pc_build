@@ -118,17 +118,17 @@ class Gpu:
 
     def __init__(self, **kwargs):
         self._name = kwargs['name']
-        self._price = kwargs['price']
         self._score = kwargs['score']
+        self._price = kwargs.get('price')
 
     def get_name(self):
         return self._name
 
-    def get_price(self):
-        return self._price
-
     def get_score(self):
         return self._score
+
+    def get_price(self):
+        return self._price
 
 
 class DataSource:
