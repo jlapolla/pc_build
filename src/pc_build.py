@@ -6,12 +6,16 @@ import datetime
 
 
 def input_dt(time_string, fmt, tz):
+    if time_string is None:
+        return None
     naive_dt = datetime.datetime.strptime(time_string, fmt) # Parse naive_dt
     aware_dt = tz.localize(naive_dt) # Assume naive_dt is in timezone tz
     return aware_dt.astimezone(pytz.utc) # Convert to utc timezone
 
 
 def output_dt(aware_dt, fmt, tz):
+    if aware_dt is None:
+        return None
     out_dt = aware_dt.astimezone(tz)
     normal_dt = tz.normalize(out_dt)
     return normal_dt.strftime(fmt)
@@ -287,14 +291,14 @@ class CpuCsvReader:
         if d.get(self._FLD_PRICE_AMOUNT) is not None:
             price = Price(
                 d[self._FLD_PRICE_AMOUNT],
-                date=d.get(self._FLD_PRICE_DATE),
+                date=input_dt(d.get(self._FLD_PRICE_DATE), '%m/%d/%y', pytz.utc),
                 url=d.get(self._FLD_PRICE_URL),
                 )
 
         score = CpuScore(
             mt_score=d[self._FLD_SCORE_MT],
             st_score=d[self._FLD_SCORE_ST],
-            date=d.get(self._FLD_SCORE_DATE),
+            date=input_dt(d.get(self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
             )
 
         return CPU(
