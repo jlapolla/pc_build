@@ -150,7 +150,7 @@ class DataSource:
 
     def __init__(self, **kwargs):
         self._url = kwargs['url']
-        self._pub_date = kwargs['pub_date']
+        self._pub_date = kwargs.get('pub_date')
 
     def get_url(self):
         return self._url
@@ -159,6 +159,15 @@ class DataSource:
         """Publication date.
         """
         return self._pub_date
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self._url == other._url
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self._url))
 
 
 class Resolution:
@@ -172,6 +181,15 @@ class Resolution:
 
     def get_height(self):
         return self._height
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self._width == other._width and self._height == other._height
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self, other):
+        return hash((self._width, self._height))
 
 
 class BadQualityError(Exception):
@@ -225,7 +243,7 @@ class Quality:
         return self._level >= other._level
 
     def __hash__(self):
-        return hash(self._level)
+        return hash((self._level))
 
 
 class Application:
@@ -243,6 +261,15 @@ class Application:
 
     def get_resolution(self):
         return self._resolution
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self._name == other._name and self._quality == other._quality and self._resolution == other._resolution
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self._name, self._quality, self._resolution))
 
 
 class FpsStudy:
@@ -282,6 +309,15 @@ class FpsStudy:
 
     def get_application(self):
         return self._application
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self._source == other._source and self._application == other._application
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self._source, self._application))
 
 
 class CpuCsvReader:
