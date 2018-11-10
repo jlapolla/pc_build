@@ -329,6 +329,10 @@ class CpuCsvReader:
 
 
 def dump_cpu_file(csv_filename):
+    """Read and output all Cpu's in csv_filename.
+
+    For manual testing purposes.
+    """
     with io.open(csv_filename) as infile:
         for cpu in CpuCsvReader(infile):
             sys.stdout.write(repr(cpu.as_dict()))
