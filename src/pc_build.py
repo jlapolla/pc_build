@@ -114,7 +114,7 @@ class GpuScore:
         return self._date
 
 
-class GPU:
+class Gpu:
 
     def __init__(self, **kwargs):
         self._name = kwargs['name']
