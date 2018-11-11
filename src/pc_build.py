@@ -279,7 +279,7 @@ class Application:
     def as_dict(self):
         d = {}
         d['name'] = self._name
-        d['quality'] = self._quality
+        d['quality'] = str(self._quality)
         d['resolution'] = self._resolution.as_dict()
         return d
 
@@ -521,13 +521,13 @@ class FpsStudyCsvReader:
         point = FpsStudy.DataPoint(
             cpu=self._cpu_dict[self._filter(d[self._FLD_CPU])],
             gpu=self._gpu_dict[self._filter(d[self._FLD_GPU])],
-            low_fps=self._filter(d[self._FLD_LOW_FPS]),
-            avg_fps=self._filter(d[self._FLD_AVG_FPS]),
+            low_fps=float(self._filter(d[self._FLD_LOW_FPS])),
+            avg_fps=float(self._filter(d[self._FLD_AVG_FPS])),
             )
 
         resolution = Resolution(
-            width=self._filter(d[self._FLD_RES_WIDTH]),
-            height=self._filter(d[self._FLD_RES_HEIGHT]),
+            width=int(self._filter(d[self._FLD_RES_WIDTH])),
+            height=int(self._filter(d[self._FLD_RES_HEIGHT])),
             )
 
         quality = Quality(
