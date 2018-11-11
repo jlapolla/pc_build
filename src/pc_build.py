@@ -4,6 +4,7 @@ import pytz
 import csv
 import datetime
 import io
+import os
 import sys
 
 
@@ -160,6 +161,13 @@ class DataSource:
         """
         return self._pub_date
 
+    def as_dict(self):
+        d = {}
+        d['url'] = self._url
+        if self._pub_date is not None:
+            d['pub_date'] = self._pub_date
+        return d
+
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._url == other._url
 
@@ -182,13 +190,19 @@ class Resolution:
     def get_height(self):
         return self._height
 
+    def as_dict(self):
+        d = {}
+        d['width'] = self._width
+        d['height'] = self._height
+        return d
+
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._width == other._width and self._height == other._height
 
     def __ne__(self, other):
         return not self == other
 
-    def __hash__(self, other):
+    def __hash__(self):
         return hash((self._width, self._height))
 
 
@@ -262,6 +276,13 @@ class Application:
     def get_resolution(self):
         return self._resolution
 
+    def as_dict(self):
+        d = {}
+        d['name'] = self._name
+        d['quality'] = self._quality
+        d['resolution'] = self._resolution.as_dict()
+        return d
+
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._name == other._name and self._quality == other._quality and self._resolution == other._resolution
 
@@ -296,6 +317,14 @@ class FpsStudy:
             """
             return self._avg_fps
 
+        def as_dict(self):
+            d = {}
+            d['cpu'] = self._cpu.get_name()
+            d['gpu'] = self._gpu.get_name()
+            d['low_fps'] = self._low_fps
+            d['avg_fps'] = self._avg_fps
+            return d
+
         def __eq__(self, other):
             return self.__class__ is other.__class__ and self._cpu == other._cpu and self._gpu == other._gpu and self._low_fps == other._low_fps and self._avg_fps == other._avg_fps
 
@@ -318,6 +347,16 @@ class FpsStudy:
 
     def get_application(self):
         return self._application
+
+    def as_dict(self):
+        d = {}
+        d['source'] = self._source.as_dict()
+        d['application'] = self._application.as_dict()
+        data = []
+        for point in self:
+            data.append(point.as_dict())
+        d['data'] = data
+        return d
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._source == other._source and self._application == other._application
@@ -453,6 +492,21 @@ class GpuCsvReader:
 
 class FpsStudyCsvReader:
 
+    _FLD_CPU = 'cpu'
+    _FLD_GPU = 'gpu'
+    _FLD_LOW_FPS = 'low_fps'
+    _FLD_AVG_FPS = 'avg_fps'
+
+    _FLD_RES_WIDTH = 'app_resolution_width'
+    _FLD_RES_HEIGHT = 'app_resolution_height'
+
+    _FLD_QUALITY = 'app_quality'
+
+    _FLD_APP_NAME = 'app_name'
+
+    _FLD_SRC_URL = 'source_url'
+    _FLD_SRC_DATE = 'source_pub_date'
+
     def __init__(self, infile, **kwargs):
         self._reader = csv.DictReader(infile)
         self._cpu_dict = kwargs['cpu_dict']
@@ -477,7 +531,7 @@ class FpsStudyCsvReader:
             )
 
         quality = Quality(
-            level=self._filter(d[self._FLD_QUALITY]),
+            level=int(self._filter(d[self._FLD_QUALITY])),
             )
 
         application = Application(
@@ -488,7 +542,7 @@ class FpsStudyCsvReader:
 
         source = DataSource(
             url=self._filter(d[self._FLD_SRC_URL]),
-            pub_date=self._get(d, self._FLD_SRC_DATE]),
+            pub_date=input_dt(self._get(d, self._FLD_SRC_DATE), '%m/%d/%y', pytz.utc),
             )
 
         return (source, application, point)
@@ -504,11 +558,14 @@ class FpsStudyCsvReader:
 
     class Context:
 
-        def __init__(self):
+        def __init__(self, **kwargs):
             self._study_dict = {}
+            if kwargs is None:
+                kwargs = {}
+            self._reader_kwargs = kwargs
 
         def read(self, infile):
-            for source, application, point in FpsStudyCsvReader(infile):
+            for source, application, point in FpsStudyCsvReader(infile, **self._reader_kwargs):
                 data_set = self._study_dict.setdefault((source, application), set())
                 data_set.add(point)
 
@@ -518,7 +575,7 @@ class FpsStudyCsvReader:
         class Iterator:
 
             def __init__(self, context):
-                self._it = context._study_dict.items()
+                self._it = iter(context._study_dict.items())
 
             def __iter__(self):
                 return self
@@ -528,5 +585,38 @@ class FpsStudyCsvReader:
                 return FpsStudy(
                     source=source,
                     application=application,
-                    data=data,
+                    data=data_set,
                     )
+
+    @classmethod
+    def dump_file(cls, csv_filename, **kwargs):
+        """Read and output all FpsStudy's in csv_filename.
+
+        For manual testing purposes.
+        """
+        if kwargs is None:
+            kwargs = {}
+        context = cls.Context(**kwargs)
+        with io.open(csv_filename) as infile:
+            context.read(infile)
+        for study in context:
+            sys.stdout.write(repr(study.as_dict()))
+            sys.stdout.write('\n')
+
+
+def dump_directory(pathname):
+    cpu_dict = {}
+    with io.open(os.path.join(pathname, 'cpu.csv')) as infile:
+        for cpu in CpuCsvReader(infile):
+            cpu_dict[cpu.get_name()] = cpu
+
+    gpu_dict = {}
+    with io.open(os.path.join(pathname, 'gpu.csv')) as infile:
+        for gpu in GpuCsvReader(infile):
+            gpu_dict[gpu.get_name()] = gpu
+
+    FpsStudyCsvReader.dump_file(
+        os.path.join(pathname, 'fps_study.csv'),
+        cpu_dict=cpu_dict,
+        gpu_dict=gpu_dict,
+        )
