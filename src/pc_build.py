@@ -620,3 +620,55 @@ def dump_directory(pathname):
         cpu_dict=cpu_dict,
         gpu_dict=gpu_dict,
         )
+
+
+class CpuGpuWorkspace:
+
+    def __init__(self):
+        self._cpu_dict = {}
+        self._gpu_dict = {}
+        self._study_dict = {}
+
+    def clear(self):
+        self._cpu_dict = {}
+        self._gpu_dict = {}
+        self._study_dict = {}
+
+    def read(self, pathname):
+        with io.open(os.path.join(pathname, 'cpu.csv')) as infile:
+            for cpu in CpuCsvReader(infile):
+                self._cpu_dict.setdefault(cpu.get_name(), cpu)
+
+        with io.open(os.path.join(pathname, 'gpu.csv')) as infile:
+            for gpu in GpuCsvReader(infile):
+                self._gpu_dict.setdefault(gpu.get_name(), gpu)
+
+        with io.open(os.path.join(pathname, 'fps_study.csv')) as infile:
+            context = FpsStudyCsvReader.Context(
+                cpu_dict=self._cpu_dict,
+                gpu_dict=self._gpu_dict,
+                )
+            context.read(infile)
+            for fps_study in context:
+                self._study_dict.setdefault((fps_study.get_source(), fps_study.get_application()), fps_study)
+
+    def iter_cpu_keys(self):
+        return iter(sorted(self._cpu_dict.keys()))
+
+    def iter_gpu_keys(self):
+        return iter(sorted(self._gpu_dict.keys()))
+
+    def iter_study_keys_by_application(self):
+        return iter(sorted(self._study_dict.keys(), key=lambda k: k[1].get_name()))
+
+    def iter_study_keys_by_source(self):
+        return iter(sorted(self._study_dict.keys(), key=lambda k: k[0].get_url()))
+
+    def get_cpu(self, key, default=None):
+        return self._cpu_dict.get(key, default)
+
+    def get_gpu(self, key, default=None):
+        return self._gpu_dict.get(key, default)
+
+    def get_study(self, key, default=None):
+        return self._study_dict.get(key, default)
