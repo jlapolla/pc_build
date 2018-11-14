@@ -1,4 +1,6 @@
 import pytz
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 import csv
@@ -623,6 +625,8 @@ def dump_directory(pathname):
 
 
 class CpuGpuWorkspace:
+    """Useful for interactively exploring data.
+    """
 
     def __init__(self):
         self._cpu_dict = {}
@@ -653,16 +657,13 @@ class CpuGpuWorkspace:
                 self._study_dict.setdefault((fps_study.get_source(), fps_study.get_application()), fps_study)
 
     def iter_cpu_keys(self):
-        return iter(sorted(self._cpu_dict.keys()))
+        return iter(self._cpu_dict.keys())
 
     def iter_gpu_keys(self):
-        return iter(sorted(self._gpu_dict.keys()))
+        return iter(self._gpu_dict.keys())
 
-    def iter_study_keys_by_application(self):
-        return iter(sorted(self._study_dict.keys(), key=lambda k: k[1].get_name()))
-
-    def iter_study_keys_by_source(self):
-        return iter(sorted(self._study_dict.keys(), key=lambda k: k[0].get_url()))
+    def iter_study_keys(self):
+        return iter(self._study_dict.keys())
 
     def get_cpu(self, key, default=None):
         return self._cpu_dict.get(key, default)
