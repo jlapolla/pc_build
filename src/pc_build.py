@@ -1,5 +1,6 @@
 import pytz
 import matplotlib.pyplot as plt
+from   mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 
@@ -295,6 +296,142 @@ class Application:
         return hash((self._name, self._quality, self._resolution))
 
 
+class Grid3D:
+
+    @staticmethod
+    def create_grid(get_x, get_y, get_z, points):
+        data = {}
+        rowset = set()
+        colset = set()
+        for point in points:
+            row = get_x(point)
+            col = get_y(point)
+            data.setdefault(row, {})[col] = get_z(point)
+            rowset.add(row)
+            colset.add(col)
+
+        rows = list(sorted(rowset))
+        cols = list(sorted(colset))
+
+        rows.sort()
+        cols.sort()
+
+        z = np.zeros((len(rows), len(cols)), dtype=np.float64)
+
+        irow = 0
+        for row in rows:
+            icol = 0
+            for col in cols:
+                z[irow, icol] = data[row][col]
+                icol += 1
+            irow += 1
+
+        x, y = np.meshgrid(np.array(rows, dtype=np.float64), np.array(cols, dtype=np.float64), indexing='ij')
+
+        return (x, y, z)
+
+    def __init__(self, **kwargs):
+        x, y, z = self.create_grid(
+            kwargs['get_x'],
+            kwargs['get_y'],
+            kwargs['get_z'],
+            kwargs['points'],
+            )
+
+        self._x = x
+        self._y = y
+        self._z = z
+        self._label_x = kwargs.get('label_x')
+        self._label_y = kwargs.get('label_y')
+        self._label_z = kwargs.get('label_z')
+
+    def get_x(self):
+        return self._x
+
+    def get_y(self):
+        return self._y
+
+    def get_z(self):
+        return self._z
+
+    def get_label_x(self):
+        return self._label_x
+
+    def get_label_y(self):
+        return self._label_y
+
+    def get_label_z(self):
+        return self._label_z
+
+
+class FpsStudy4Plot:
+
+    def __init__(self, study, plotter):
+        figure = plotter.figure()
+        figure.suptitle(study.get_application().get_name())
+
+        grids = [[None, None], [None, None]]
+        grids[0][0] = Grid3D(
+            get_x=FpsStudy.DataPoint.get_cpu_mt_score,
+            get_y=FpsStudy.DataPoint.get_gpu_g3d_score,
+            get_z=FpsStudy.DataPoint.get_avg_fps,
+            label_x='cpu_mt_score',
+            label_y='gpu_g3d_score',
+            label_z='avg_fps',
+            points=study,
+            )
+        grids[0][1] = Grid3D(
+            get_x=FpsStudy.DataPoint.get_cpu_mt_score,
+            get_y=FpsStudy.DataPoint.get_gpu_g3d_score,
+            get_z=FpsStudy.DataPoint.get_low_fps,
+            label_x='cpu_mt_score',
+            label_y='gpu_g3d_score',
+            label_z='low_fps',
+            points=study,
+            )
+        grids[1][0] = Grid3D(
+            get_x=FpsStudy.DataPoint.get_cpu_st_score,
+            get_y=FpsStudy.DataPoint.get_gpu_g3d_score,
+            get_z=FpsStudy.DataPoint.get_avg_fps,
+            label_x='cpu_st_score',
+            label_y='gpu_g3d_score',
+            label_z='avg_fps',
+            points=study,
+            )
+        grids[1][1] = Grid3D(
+            get_x=FpsStudy.DataPoint.get_cpu_st_score,
+            get_y=FpsStudy.DataPoint.get_gpu_g3d_score,
+            get_z=FpsStudy.DataPoint.get_low_fps,
+            label_x='cpu_st_score',
+            label_y='gpu_g3d_score',
+            label_z='low_fps',
+            points=study,
+            )
+
+        pos = 0
+        i = 0
+        for grid_i in grids:
+            j = 0
+            for grid in grid_i:
+                axes_kwargs = {}
+                if grid.get_label_x() is not None:
+                    axes_kwargs['xlabel'] = grid.get_label_x()
+                if grid.get_label_y() is not None:
+                    axes_kwargs['ylabel'] = grid.get_label_y()
+                if grid.get_label_z() is not None:
+                    axes_kwargs['zlabel'] = grid.get_label_z()
+
+                axes = figure.add_subplot(2, 2, pos + 1, projection='3d', **axes_kwargs)
+                axes.plot_wireframe(grid.get_x(), grid.get_y(), grid.get_z())
+
+                pos += 1
+                j += 1
+            i += 1
+
+        plotter.show()
+        plotter.close(figure)
+
+
 class FpsStudy:
 
     class DataPoint:
@@ -335,6 +472,15 @@ class FpsStudy:
 
         def __hash__(self):
             return hash((self._cpu, self._gpu, self._low_fps, self._avg_fps))
+
+        def get_cpu_st_score(self):
+            return self.get_cpu().get_score().get_st_score()
+
+        def get_cpu_mt_score(self):
+            return self.get_cpu().get_score().get_mt_score()
+
+        def get_gpu_g3d_score(self):
+            return self.get_gpu().get_score().get_g3d_score()
 
     def __init__(self, **kwargs):
         self._source = kwargs['source']
@@ -400,8 +546,8 @@ class CpuCsvReader:
                 )
 
         score = CpuScore(
-            mt_score=self._filter(d[self._FLD_SCORE_MT]),
-            st_score=self._filter(d[self._FLD_SCORE_ST]),
+            mt_score=float(self._filter(d[self._FLD_SCORE_MT])),
+            st_score=float(self._filter(d[self._FLD_SCORE_ST])),
             date=input_dt(self._get(d, self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
             )
 
@@ -461,7 +607,7 @@ class GpuCsvReader:
                 )
 
         score = GpuScore(
-            g3d_score=self._filter(d[self._FLD_G3D_SCORE]),
+            g3d_score=float(self._filter(d[self._FLD_G3D_SCORE])),
             date=input_dt(self._get(d, self._FLD_SCORE_DATE), '%m/%d/%y', pytz.utc),
             )
 
