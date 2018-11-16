@@ -1,4 +1,4 @@
-name,interface,TDP,g3d_score,score_date,price,price_url,price_date
-GTX 1080,PCIe 3.0 x16,180,12332,11/09/18,,,
-GTX 1070,PCIe 3.0 x16,150,11212,11/09/18,,,
-GTX 1060,PCIe 3.0 x16,120,9014,11/09/18,,,
+name,interface,TDP,g3d_score,score_date,price,price_date,price_url
+GTX 1080,PCIe 3.0 x16,180,12332,11/09/18,449.99,11/15/18,https://www.videocardbenchmark.net/gpu.php?id=3502
+GTX 1070,PCIe 3.0 x16,150,11212,11/09/18,359.99,11/15/18,https://www.videocardbenchmark.net/gpu.php?id=3521
+GTX 1060,PCIe 3.0 x16,120,9014,11/09/18,249.99,11/15/18,https://www.videocardbenchmark.net/gpu.php?id=3548
