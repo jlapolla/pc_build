@@ -572,7 +572,7 @@ def top_boundary_2D(x, y):
     return (x[indices], y[indices])
 
 
-class FpsStudy4Plot:
+class FpsStudyPerformancePlot:
 
     def __init__(self, study, plotter):
         figure = plotter.figure()
