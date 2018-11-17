@@ -320,20 +320,12 @@ class Grid2D:
 
         self._x = x
         self._y = y
-        self._label_x = kwargs.get('label_x')
-        self._label_y = kwargs.get('label_y')
 
     def get_x(self):
         return self._x
 
     def get_y(self):
         return self._y
-
-    def get_label_x(self):
-        return self._label_x
-
-    def get_label_y(self):
-        return self._label_y
 
 
 class Grid3D:
