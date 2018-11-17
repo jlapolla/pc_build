@@ -296,6 +296,46 @@ class Application:
         return hash((self._name, self._quality, self._resolution))
 
 
+class Grid2D:
+
+    @staticmethod
+    def create_grid(get_x, get_y, points):
+        rows = list()
+        cols = list()
+        for point in points:
+            rows.append(get_x(point))
+            cols.append(get_y(point))
+
+        x = np.array(rows, dtype=np.float64)
+        y = np.array(cols, dtype=np.float64)
+
+        return (x, y)
+
+    def __init__(self, **kwargs):
+        x, y = self.create_grid(
+            kwargs['get_x'],
+            kwargs['get_y'],
+            kwargs['points'],
+            )
+
+        self._x = x
+        self._y = y
+        self._label_x = kwargs.get('label_x')
+        self._label_y = kwargs.get('label_y')
+
+    def get_x(self):
+        return self._x
+
+    def get_y(self):
+        return self._y
+
+    def get_label_x(self):
+        return self._label_x
+
+    def get_label_y(self):
+        return self._label_y
+
+
 class Grid3D:
 
     @staticmethod
@@ -362,6 +402,44 @@ class Grid3D:
 
     def get_label_z(self):
         return self._label_z
+
+
+def top_boundary_2D(x, y):
+
+    # Get indices sorted by y, then by x.
+    # https://stackoverflow.com/a/11253931
+
+    axis = 0
+    index_y = list(np.ix_(*[np.arange(i) for i in y.shape]))
+    index_y[axis] = y.argsort(axis, kind='stable')
+    index_x = list(np.ix_(*[np.arange(i) for i in x.shape]))
+    index_x[axis] = x[tuple(index_y)].argsort(axis, kind='stable')
+
+    # index_x contains indices into the SORTED x. sort_index contains indices
+    # into the ORIGINAL x.
+    sort_index = list(np.ix_(*[np.arange(i) for i in x.shape]))
+    sort_index[axis] = index_y[axis][tuple(index_x)]
+
+    # Sort x and y.
+    x = x[tuple(sort_index)]
+    y = y[tuple(sort_index)]
+
+    indices = list()
+    last_i = 0
+    i = 1
+    while i < len(x):
+        if y[last_i] < y[i]:
+            if x[last_i] == x[i]:
+                last_i = i
+            else:
+                # We know that x[last_i] < x[i].
+                indices.append(last_i)
+                last_i = i
+        i += 1
+
+    indices.append(last_i)
+
+    return (x[indices], y[indices])
 
 
 class FpsStudy4Plot:
@@ -432,6 +510,48 @@ class FpsStudy4Plot:
         plotter.close(figure)
 
 
+class FpsStudyPricePlot:
+
+    def __init__(self, study, plotter):
+        figure = plotter.figure()
+        figure.suptitle(study.get_application().get_name())
+
+        grids = [None, None]
+        grids[0] = Grid2D(
+            get_x=FpsStudy.DataPoint.get_total_price,
+            get_y=FpsStudy.DataPoint.get_avg_fps,
+            label_x='price',
+            label_y='avg_fps',
+            points=study,
+            )
+        grids[1] = Grid2D(
+            get_x=FpsStudy.DataPoint.get_total_price,
+            get_y=FpsStudy.DataPoint.get_low_fps,
+            label_x='price',
+            label_y='low_fps',
+            points=study,
+            )
+
+        pos = 0
+        i = 0
+        for grid in grids:
+            axes_kwargs = {}
+            if grid.get_label_x() is not None:
+                axes_kwargs['xlabel'] = grid.get_label_x()
+            if grid.get_label_y() is not None:
+                axes_kwargs['ylabel'] = grid.get_label_y()
+
+            axes = figure.add_subplot(1, 2, pos + 1, **axes_kwargs)
+            axes.plot(grid.get_x(), grid.get_y(), 'ko')
+            axes.plot(*top_boundary_2D(grid.get_x(), grid.get_y()), 'r-')
+
+            pos += 1
+            i += 1
+
+        plotter.show()
+        plotter.close(figure)
+
+
 class FpsStudy:
 
     class DataPoint:
@@ -481,6 +601,19 @@ class FpsStudy:
 
         def get_gpu_g3d_score(self):
             return self.get_gpu().get_score().get_g3d_score()
+
+        def get_total_price(self):
+            cpu_price = self.get_cpu().get_price()
+            if cpu_price is None:
+                return None
+            cpu_price = cpu_price.get_amount()
+
+            gpu_price = self.get_gpu().get_price()
+            if gpu_price is None:
+                return None
+            gpu_price = gpu_price.get_amount()
+
+            return cpu_price + gpu_price
 
     def __init__(self, **kwargs):
         self._source = kwargs['source']
@@ -540,7 +673,7 @@ class CpuCsvReader:
         price = None
         if self._get(d, self._FLD_PRICE_AMOUNT) is not None:
             price = Price(
-                self._filter(d[self._FLD_PRICE_AMOUNT]),
+                float(self._filter(d[self._FLD_PRICE_AMOUNT])),
                 date=input_dt(self._get(d, self._FLD_PRICE_DATE), '%m/%d/%y', pytz.utc),
                 url=self._get(d, self._FLD_PRICE_URL),
                 )
@@ -601,7 +734,7 @@ class GpuCsvReader:
         price = None
         if self._get(d, self._FLD_PRICE_AMOUNT) is not None:
             price = Price(
-                self._filter(d[self._FLD_PRICE_AMOUNT]),
+                float(self._filter(d[self._FLD_PRICE_AMOUNT])),
                 date=input_dt(self._get(d, self._FLD_PRICE_DATE), '%m/%d/%y', pytz.utc),
                 url=self._get(d, self._FLD_PRICE_URL),
                 )
