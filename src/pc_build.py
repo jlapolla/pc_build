@@ -199,6 +199,9 @@ class Resolution:
         d['height'] = self._height
         return d
 
+    def __str__(self):
+        return str(self.Name(self))
+
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._width == other._width and self._height == other._height
 
@@ -207,6 +210,97 @@ class Resolution:
 
     def __hash__(self):
         return hash((self._width, self._height))
+
+    class Name:
+
+        def __init__(self, resolution):
+            self._resolution = resolution
+
+        def __str__(self):
+            with io.StringIO() as strbuff:
+                strbuff.write(str(self._resolution.get_width()))
+                strbuff.write('x')
+                strbuff.write(str(self._resolution.get_height()))
+                return strbuff.getvalue()
+
+    class CommonName:
+
+        # https://en.wikipedia.org/wiki/Display_resolution
+        _MAP = {
+            320: {
+                200: 'CGA',
+                240: 'QVGA',
+                },
+            352: {
+                288: 'CIF',
+                },
+            384: {
+                288: 'SIF',
+                },
+            480: {
+                320: 'HVGA',
+                },
+            640: {
+                480: 'VGA',
+                },
+            768: {
+                576: 'PAL',
+                },
+            800: {
+                480: 'WVGA',
+                600: 'SVGA',
+                },
+            1024: {
+                600: 'WSVGA',
+                768: 'XGA',
+                },
+            1152: {
+                864: 'XGA+',
+                },
+            1280: {
+                720: '720p',
+                768: 'WXGA',
+                1024: 'SXGA',
+                },
+            1400: {
+                1050: 'SXGA+',
+                },
+            1600: {
+                1200: 'UXGA',
+                },
+            1680: {
+                1050: 'WSXGA+',
+                },
+            1920: {
+                1080: '1080p',
+                1200: 'WUXGA',
+                },
+            2048: {
+                1080: '2K',
+                1536: 'QXGA',
+                },
+            2560: {
+                1080: 'UWHD',
+                1440: 'WQHD',
+                1600: 'WQXGA',
+                2048: 'QSXGA',
+                },
+            3440: {
+                1440: 'UWQHD',
+                },
+            3840: {
+                2160: 'UHD-1',
+                },
+            4096: {
+                2160: '4K',
+                },
+            }
+
+        def __init__(self, resolution):
+            self._resolution = resolution
+
+        def __str__(self):
+            return self._MAP.get(self._resolution.get_width(), {}).get(self._resolution.get_height(), str(Resolution.Name(self._resolution)))
 
 
 class BadQualityError(Exception):
@@ -221,22 +315,14 @@ class BadQualityError(Exception):
 
 class Quality:
 
-    _NAME_MAP = {
-        1: 'low',
-        2: 'medium',
-        3: 'high',
-        4: 'very high',
-        5: 'ultra',
-        }
-
     def __init__(self, **kwargs):
         level = kwargs['level']
-        if level not in self._NAME_MAP:
+        if level not in self.Name._MAP:
             raise BadQualityError('invalid quality level {0}'.format(level))
         self._level = level
 
     def __str__(self):
-        return self._NAME_MAP[self._level]
+        return str(self.Name(self))
 
     def __int__(self):
         return self._level
@@ -262,6 +348,22 @@ class Quality:
     def __hash__(self):
         return hash((self._level))
 
+    class Name:
+
+        _MAP = {
+            1: 'low',
+            2: 'medium',
+            3: 'high',
+            4: 'very high',
+            5: 'ultra',
+            }
+
+        def __init__(self, quality):
+            self._quality = quality
+
+        def __str__(self):
+            return self._MAP.get(int(self._quality), str(int(self._quality)))
+
 
 class Application:
 
@@ -286,6 +388,9 @@ class Application:
         d['resolution'] = self._resolution.as_dict()
         return d
 
+    def __str__(self):
+        return str(self.Name(self))
+
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._name == other._name and self._quality == other._quality and self._resolution == other._resolution
 
@@ -294,6 +399,39 @@ class Application:
 
     def __hash__(self):
         return hash((self._name, self._quality, self._resolution))
+
+    class Name:
+
+        def __init__(self, application):
+            self._application = application
+
+        def __str__(self):
+            return self._application.get_name()
+
+    class SettingsName:
+
+        def __init__(self, application):
+            self._application = application
+
+        def __str__(self):
+            with io.StringIO() as strbuff:
+                strbuff.write(str(Quality.Name(self._application.get_quality())))
+                strbuff.write(' ')
+                strbuff.write(str(Resolution.CommonName(self._application.get_resolution())))
+                return strbuff.getvalue()
+
+    class LongName:
+
+        def __init__(self, application):
+            self._application = application
+
+        def __str__(self):
+            with io.StringIO() as strbuff:
+                strbuff.write(str(Application.Name(self._application)))
+                strbuff.write(' (')
+                strbuff.write(str(Application.SettingsName(self._application)))
+                strbuff.write(' )')
+                return strbuff.getvalue()
 
 
 class Grid2D:
@@ -438,7 +576,7 @@ class FpsStudy4Plot:
 
     def __init__(self, study, plotter):
         figure = plotter.figure()
-        figure.suptitle(study.get_application().get_name())
+        figure.suptitle(str(Application.Name(study.get_application())) + '\n(' + str(Application.SettingsName(study.get_application())) + ')')
 
         grids = [[None, None], [None, None]]
         grids[0][0] = Grid3D(
@@ -506,7 +644,7 @@ class FpsStudyPricePlot:
 
     def __init__(self, study, plotter):
         figure = plotter.figure()
-        figure.suptitle(study.get_application().get_name())
+        figure.suptitle(str(Application.Name(study.get_application())) + '\n(' + str(Application.SettingsName(study.get_application())) + ')')
 
         grid_specs = [
                 {
