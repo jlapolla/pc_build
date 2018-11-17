@@ -516,34 +516,36 @@ class FpsStudyPricePlot:
         figure = plotter.figure()
         figure.suptitle(study.get_application().get_name())
 
-        grids = [None, None]
-        grids[0] = Grid2D(
-            get_x=FpsStudy.DataPoint.get_total_price,
-            get_y=FpsStudy.DataPoint.get_avg_fps,
-            label_x='price',
-            label_y='avg_fps',
-            points=study,
-            )
-        grids[1] = Grid2D(
-            get_x=FpsStudy.DataPoint.get_total_price,
-            get_y=FpsStudy.DataPoint.get_low_fps,
-            label_x='price',
-            label_y='low_fps',
-            points=study,
-            )
+        grid_specs = [
+                {
+                    'get_x': FpsStudy.DataPoint.get_total_price,
+                    'get_y': FpsStudy.DataPoint.get_avg_fps,
+                    'label_x': 'price',
+                    'label_y': 'avg_fps',
+                },
+                {
+                    'get_x': FpsStudy.DataPoint.get_total_price,
+                    'get_y': FpsStudy.DataPoint.get_low_fps,
+                    'label_x': 'price',
+                    'label_y': 'low_fps',
+                },
+            ]
 
         pos = 0
         i = 0
-        for grid in grids:
+        for spec in grid_specs:
+            grid = Grid2D(points=study, **spec)
             axes_kwargs = {}
-            if grid.get_label_x() is not None:
-                axes_kwargs['xlabel'] = grid.get_label_x()
-            if grid.get_label_y() is not None:
-                axes_kwargs['ylabel'] = grid.get_label_y()
+            axes_kwargs['xlabel'] = spec['label_x']
+            axes_kwargs['ylabel'] = spec['label_y']
 
             axes = figure.add_subplot(1, 2, pos + 1, **axes_kwargs)
-            axes.plot(grid.get_x(), grid.get_y(), 'ko')
             axes.plot(*top_boundary_2D(grid.get_x(), grid.get_y()), 'r-')
+            axes.plot(grid.get_x(), grid.get_y(), 'ko')
+
+            for point in study:
+                point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name()
+                axes.annotate(point_label, (spec['get_x'](point), spec['get_y'](point)), fontsize=6)
 
             pos += 1
             i += 1
