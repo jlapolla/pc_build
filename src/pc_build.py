@@ -1232,6 +1232,7 @@ class CpuGpuWorkspace:
                     axes_kwargs['ylabel'] = spec['grid_spec']['label_y']
 
                     axes = figure.add_subplot(1, 2, pos + 1, **axes_kwargs)
+                    self._plot_price_performance_contours(axes, grid.get_x(), grid.get_y())
                     axes.plot(*top_boundary_2D(grid.get_x(), grid.get_y()), 'r-')
                     float_scores = self._get_float_scores(study, spec['score_tracker'])
                     colorbar_mappable = axes.scatter(grid.get_x(), grid.get_y(), c=float_scores, cmap=cmap, vmin=0.0, vmax=1.0)
@@ -1266,6 +1267,31 @@ class CpuGpuWorkspace:
                     float_scores.append(float(0))
 
             return np.array(float_scores, dtype=np.float64)
+
+        def _plot_price_performance_contours(self, axes, x, y):
+            min_x = x.min()
+            max_x = x.max()
+
+            min_y = y.min()
+            max_y = y.max()
+
+            z = y / x
+            min_z = z.min()
+            max_z = z.max()
+
+            min_z = min_z + (max_z - min_z) * 0.1
+            max_z = min_z + (max_z - min_z) * 0.9
+
+            for z_val in np.linspace(min_z, max_z, num=9):
+                x_val = np.linspace(min_x, max_x, num=2)
+                y_val = z_val * x_val
+                if y_val[0] < min_y:
+                    y_val[0] = min_y
+                    x_val[0] = min_y / z_val
+                if y_val[1] > max_y:
+                    y_val[1] = max_y
+                    x_val[1] = max_y / z_val
+                axes.plot(x_val, y_val, '#E0E0E0')
 
         class ScoreTracker:
 
