@@ -104,6 +104,15 @@ class Cpu:
             d['price'] = self._price.as_dict()
         return d
 
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self._name == other._name
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self._name,))
+
 
 class GpuScore:
 
@@ -148,6 +157,15 @@ class Gpu:
         if self._price is not None:
             d['price'] = self._price.as_dict()
         return d
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self._name == other._name
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self._name,))
 
 
 class DataSource:
@@ -435,6 +453,7 @@ class Application:
 
 
 class Grid2D:
+    # FIXME: Rename to Scatter2D, since it does not reorder points into a grid.
 
     @staticmethod
     def create_grid(get_x, get_y, points):
@@ -1084,3 +1103,125 @@ class CpuGpuWorkspace:
 
     def get_study(self, key, default=None):
         return self._study_dict.get(key, default)
+
+
+    class PriceExperiment:
+
+        _AVG_FPS_SPEC = {
+            'get_x': FpsStudy.DataPoint.get_total_price,
+            'get_y': FpsStudy.DataPoint.get_avg_fps,
+            'label_x': 'price',
+            'label_y': 'avg_fps',
+            }
+
+        _LOW_FPS_SPEC = {
+            'get_x': FpsStudy.DataPoint.get_total_price,
+            'get_y': FpsStudy.DataPoint.get_low_fps,
+            'label_x': 'price',
+            'label_y': 'low_fps',
+            }
+
+        def __init__(self, workspace):
+            self._workspace = workspace
+            self._avg_fps_score_tracker = self.ScoreTracker()
+            self._low_fps_score_tracker = self.ScoreTracker()
+
+            for study_key in self._workspace.iter_study_keys():
+                study = self._workspace.get_study(study_key)
+                self._assign_scores(self._avg_fps_score_tracker, study, self._AVG_FPS_SPEC)
+                self._assign_scores(self._low_fps_score_tracker, study, self._LOW_FPS_SPEC)
+
+        def _assign_scores(self, score_tracker, study, grid_spec):
+            grid = Grid2D(points=study, **grid_spec)
+            frontier_x, frontier_y = top_boundary_2D(grid.get_x(), grid.get_y())
+
+            get_x = grid_spec['get_x']
+            get_y = grid_spec['get_y']
+
+            for point in study:
+                if self._point_in_set(get_x(point), get_y(point), frontier_x, frontier_y):
+                    score_tracker.increment_score(point)
+                score_tracker.increment_occurrence(point)
+
+        def _point_in_set(self, x, y, data_x, data_y):
+            i_x = data_x.searchsorted(x)
+            return 0 <= i_x and i_x < data_y.size and y == data_y[i_x]
+
+        def show_all(self, plotter):
+            specs = [
+                    {
+                        'grid_spec': self._AVG_FPS_SPEC,
+                        'score_tracker': self._avg_fps_score_tracker,
+                    },
+                    {
+                        'grid_spec': self._LOW_FPS_SPEC,
+                        'score_tracker': self._low_fps_score_tracker,
+                    },
+                ]
+
+            for study_key in sorted(self._workspace.iter_study_keys(), key=lambda k: k[1].get_name()):
+                study = self._workspace.get_study(study_key)
+
+                figure = plotter.figure()
+                figure.suptitle(str(Application.Name(study.get_application())) + '\n(' + str(Application.SettingsName(study.get_application())) + ')')
+
+                cmap = plotter.cm.get_cmap('RdYlBu')
+                colorbar_mappable = None
+
+                pos = 0
+                i = 0
+                for spec in specs:
+                    grid = Grid2D(points=study, **spec['grid_spec'])
+                    axes_kwargs = {}
+                    axes_kwargs['xlabel'] = spec['grid_spec']['label_x']
+                    axes_kwargs['ylabel'] = spec['grid_spec']['label_y']
+
+                    axes = figure.add_subplot(1, 2, pos + 1, **axes_kwargs)
+                    axes.plot(*top_boundary_2D(grid.get_x(), grid.get_y()), 'r-')
+                    float_scores = self._get_float_scores(study, spec['score_tracker'])
+                    colorbar_mappable = axes.scatter(grid.get_x(), grid.get_y(), c=float_scores, cmap=cmap)
+
+                    point_idx = 0
+                    for point in study:
+                        point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}%'.format(int(100.0 * float_scores[point_idx]))
+                        axes.annotate(point_label, (spec['grid_spec']['get_x'](point), spec['grid_spec']['get_y'](point)), fontsize=6)
+                        point_idx += 1
+
+                    pos += 1
+                    i += 1
+
+                figure.colorbar(colorbar_mappable)
+
+                plotter.show()
+                plotter.close(figure)
+
+        def _get_float_scores(self, study, score_tracker):
+            # This relies on the points in the associated x and y arrays being
+            # in the same iteration order!
+            float_scores = list()
+            for point in study:
+                score_dict = score_tracker.get_score(point)
+                score = score_dict['score']
+                occurrence = score_dict['occurrence']
+                if occurrence > 0:
+                    float_scores.append(float(score) / float(occurrence))
+                else:
+                    float_scores.append(float(0))
+
+            return np.array(float_scores, dtype=np.float64)
+
+        class ScoreTracker:
+
+            def __init__(self):
+                self._scores = dict()
+
+            def increment_score(self, point):
+                self.get_score(point)['score'] += 1
+
+            def increment_occurrence(self, point):
+                self.get_score(point)['occurrence'] += 1
+
+            def get_score(self, point):
+                cpu = point.get_cpu()
+                gpu = point.get_gpu()
+                return self._scores.setdefault((cpu, gpu), {'score': 0, 'occurrence': 0})
