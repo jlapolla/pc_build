@@ -1165,7 +1165,7 @@ class CpuGpuWorkspace:
                 figure = plotter.figure()
                 figure.suptitle(str(Application.Name(study.get_application())) + '\n(' + str(Application.SettingsName(study.get_application())) + ')')
 
-                cmap = plotter.cm.get_cmap('RdYlBu')
+                cmap = plotter.cm.get_cmap('gnuplot')
                 colorbar_mappable = None
 
                 pos = 0
@@ -1179,12 +1179,13 @@ class CpuGpuWorkspace:
                     axes = figure.add_subplot(1, 2, pos + 1, **axes_kwargs)
                     axes.plot(*top_boundary_2D(grid.get_x(), grid.get_y()), 'r-')
                     float_scores = self._get_float_scores(study, spec['score_tracker'])
-                    colorbar_mappable = axes.scatter(grid.get_x(), grid.get_y(), c=float_scores, cmap=cmap)
+                    colorbar_mappable = axes.scatter(grid.get_x(), grid.get_y(), c=float_scores, cmap=cmap, vmin=0.0, vmax=1.0)
 
                     point_idx = 0
                     for point in study:
-                        point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}%'.format(int(100.0 * float_scores[point_idx]))
-                        axes.annotate(point_label, (spec['grid_spec']['get_x'](point), spec['grid_spec']['get_y'](point)), fontsize=6)
+                        if float_scores[point_idx] > 0.0:
+                            point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}%'.format(int(100.0 * float_scores[point_idx]))
+                            axes.annotate(point_label, (spec['grid_spec']['get_x'](point), spec['grid_spec']['get_y'](point)), fontsize=6)
                         point_idx += 1
 
                     pos += 1
