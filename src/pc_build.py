@@ -800,6 +800,49 @@ class FpsStudy:
         return hash((self._source, self._application))
 
 
+class MergedFpsStudy(FpsStudy):
+
+    class MergedDataPoint(FpsStudy.DataPoint):
+
+        def __init__(self, **kwargs):
+            points = kwargs.pop('points')
+
+            low_fps_sum = 0.0
+            avg_fps_sum = 0.0
+            for point in points:
+                low_fps_sum += point.get_low_fps()
+                avg_fps_sum += point.get_avg_fps()
+
+            kwargs.setdefault('cpu', points[0].get_cpu())
+            kwargs.setdefault('gpu', points[0].get_gpu())
+            kwargs['low_fps'] = low_fps_sum / float(len(points))
+            kwargs['avg_fps'] = avg_fps_sum / float(len(points))
+
+            super().__init__(**kwargs)
+
+    def __init__(self, **kwargs):
+        studies = kwargs.pop('studies')
+
+        d = dict()
+        for study in studies:
+            for point in study:
+                l = d.setdefault((point.get_cpu(), point.get_gpu()), [])
+                l.append(point)
+
+        merged_points = []
+        for k, points in d.items():
+            if len(points) == 1:
+                merged_points.append(points[0])
+            else:
+                merged_points.append(self.MergedDataPoint(points=points))
+
+        kwargs.setdefault('source', studies[0].get_source())
+        kwargs.setdefault('application', studies[0].get_application())
+        kwargs['data'] = merged_points
+
+        super().__init__(**kwargs)
+
+
 class CpuCsvReader:
 
     _FLD_PRICE_AMOUNT = 'price'
@@ -1122,12 +1165,26 @@ class CpuGpuWorkspace:
             }
 
         def __init__(self, workspace):
-            self._workspace = workspace
+
+            # Merge studies with the same application.
+            d = dict()
+            for study_key in workspace.iter_study_keys():
+                application = study_key[1]
+                l = d.setdefault((application,), [])
+                l.append(workspace.get_study(study_key))
+
+            merged_studies = []
+            for k, studies in d.items():
+                if len(studies) == 1:
+                    merged_studies.append(studies[0])
+                else:
+                    merged_studies.append(MergedFpsStudy(studies=studies))
+
+            self._studies = merged_studies
             self._avg_fps_score_tracker = self.ScoreTracker()
             self._low_fps_score_tracker = self.ScoreTracker()
 
-            for study_key in self._workspace.iter_study_keys():
-                study = self._workspace.get_study(study_key)
+            for study in self._studies:
                 self._assign_scores(self._avg_fps_score_tracker, study, self._AVG_FPS_SPEC)
                 self._assign_scores(self._low_fps_score_tracker, study, self._LOW_FPS_SPEC)
 
@@ -1159,9 +1216,7 @@ class CpuGpuWorkspace:
                     },
                 ]
 
-            for study_key in sorted(self._workspace.iter_study_keys(), key=lambda k: k[1].get_name()):
-                study = self._workspace.get_study(study_key)
-
+            for study in sorted(self._studies, key=lambda k: k.get_application().get_name()):
                 figure = plotter.figure()
                 figure.suptitle(str(Application.Name(study.get_application())) + '\n(' + str(Application.SettingsName(study.get_application())) + ')')
 
@@ -1184,7 +1239,8 @@ class CpuGpuWorkspace:
                     point_idx = 0
                     for point in study:
                         if float_scores[point_idx] > 0.0:
-                            point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}%'.format(int(100.0 * float_scores[point_idx]))
+                            occurrence = spec['score_tracker'].get_score(point)['occurrence']
+                            point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}% ({1:d})'.format(int(100.0 * float_scores[point_idx]), occurrence)
                             axes.annotate(point_label, (spec['grid_spec']['get_x'](point), spec['grid_spec']['get_y'](point)), fontsize=6)
                         point_idx += 1
 
