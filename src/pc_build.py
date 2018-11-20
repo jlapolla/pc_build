@@ -1164,7 +1164,7 @@ class CpuGpuWorkspace:
             'label_y': 'low_fps',
             }
 
-        def __init__(self, workspace):
+        def __init__(self, workspace, **kwargs):
 
             # Merge studies with the same application.
             d = dict()
@@ -1183,6 +1183,7 @@ class CpuGpuWorkspace:
             self._studies = merged_studies
             self._avg_fps_score_tracker = self.ScoreTracker()
             self._low_fps_score_tracker = self.ScoreTracker()
+            self._price_offset = kwargs.get('price_offset', 0.0) # Adjust prices to account for the cost of the rest of the computer.
 
             for study in self._studies:
                 self._assign_scores(self._avg_fps_score_tracker, study, self._AVG_FPS_SPEC)
@@ -1227,22 +1228,25 @@ class CpuGpuWorkspace:
                 i = 0
                 for spec in specs:
                     grid = Grid2D(points=study, **spec['grid_spec'])
+                    x = grid.get_x() + self._price_offset
+                    y = grid.get_y()
+
                     axes_kwargs = {}
                     axes_kwargs['xlabel'] = spec['grid_spec']['label_x']
                     axes_kwargs['ylabel'] = spec['grid_spec']['label_y']
 
                     axes = figure.add_subplot(1, 2, pos + 1, **axes_kwargs)
-                    self._plot_price_performance_contours(axes, grid.get_x(), grid.get_y())
-                    axes.plot(*top_boundary_2D(grid.get_x(), grid.get_y()), 'r-')
+                    self._plot_price_performance_contours(axes, x, y)
+                    axes.plot(*top_boundary_2D(x, y), 'r-')
                     float_scores = self._get_float_scores(study, spec['score_tracker'])
-                    colorbar_mappable = axes.scatter(grid.get_x(), grid.get_y(), c=float_scores, cmap=cmap, vmin=0.0, vmax=1.0)
+                    colorbar_mappable = axes.scatter(x, y, c=float_scores, cmap=cmap, vmin=0.0, vmax=1.0)
 
                     point_idx = 0
                     for point in study:
                         if float_scores[point_idx] > 0.0:
                             occurrence = spec['score_tracker'].get_score(point)['occurrence']
                             point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}% ({1:d})'.format(int(100.0 * float_scores[point_idx]), occurrence)
-                            axes.annotate(point_label, (spec['grid_spec']['get_x'](point), spec['grid_spec']['get_y'](point)), fontsize=6)
+                            axes.annotate(point_label, (x[point_idx], y[point_idx]), fontsize=6)
                         point_idx += 1
 
                     pos += 1
