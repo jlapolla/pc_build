@@ -805,6 +805,31 @@ class FpsStudy:
     def __hash__(self):
         return hash((self._source, self._application))
 
+    class CpuGpuBlacklistFilter:
+        """Data point blacklist filter.
+
+        Useful for conducting process of elimination studies. Use in conjuction
+        with CpuGpuWorkspace.filter_studies().
+        """
+
+        def __init__(self, blacklist):
+            self._blacklist = set(blacklist)
+
+        def do_filter(self, study):
+            points = list()
+            for point in study:
+                if (point.get_cpu(), point.get_gpu()) not in self._blacklist:
+                    points.append(point)
+
+            if len(points) <= 0:
+                return None
+
+            return FpsStudy(
+                source=study.get_source(),
+                application=study.get_application(),
+                data=points,
+                )
+
 
 class MergedFpsStudy(FpsStudy):
 
@@ -1176,6 +1201,33 @@ class CpuGpuWorkspace:
             else:
                 study = MergedFpsStudy(studies=studies)
             study_dict.setdefault((study.get_source(), study.get_application()), study)
+
+        # Copy CPU dictionary.
+        cpu_dict = dict()
+        for k in workspace.iter_cpu_keys():
+            cpu_dict[k] = workspace.get_cpu(k)
+
+        # Copy GPU dictionary.
+        gpu_dict = dict()
+        for k in workspace.iter_gpu_keys():
+            gpu_dict[k] = workspace.get_gpu(k)
+
+        new_workspace = cls()
+        new_workspace._cpu_dict = cpu_dict
+        new_workspace._gpu_dict = gpu_dict
+        new_workspace._study_dict = study_dict
+
+        return new_workspace
+
+    @classmethod
+    def filter_studies(cls, workspace, filter_fn):
+
+        # Filter studies.
+        study_dict = dict()
+        for study in workspace.iter_studies():
+            study = filter_fn(study)
+            if study is not None:
+                study_dict.setdefault((study.get_source(), study.get_application()), study)
 
         # Copy CPU dictionary.
         cpu_dict = dict()
