@@ -299,7 +299,7 @@ class Resolution:
                 },
             2560: {
                 1080: 'UWHD',
-                1440: 'WQHD',
+                1440: '1440p',
                 1600: 'WQXGA',
                 2048: 'QSXGA',
                 },
