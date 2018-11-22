@@ -1326,10 +1326,9 @@ class CpuGpuWorkspace:
 
                     point_idx = 0
                     for point in study:
-                        if float_scores[point_idx] > 0.0:
-                            occurrence = spec['score_tracker'].get_score(point)['occurrence']
-                            point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}% ({1:d})'.format(int(100.0 * float_scores[point_idx]), occurrence)
-                            axes.annotate(point_label, (x[point_idx], y[point_idx]), fontsize=6)
+                        occurrence = spec['score_tracker'].get_score(point)['occurrence']
+                        point_label = point.get_gpu().get_name() + '\n' + point.get_cpu().get_name() + '\n' + '{0:d}% ({1:d})'.format(int(100.0 * float_scores[point_idx]), occurrence)
+                        axes.annotate(point_label, (x[point_idx], y[point_idx]), fontsize=6)
                         point_idx += 1
 
                     pos += 1
