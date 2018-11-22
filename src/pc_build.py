@@ -1263,14 +1263,7 @@ class CpuGpuWorkspace:
             }
 
         def __init__(self, workspace, **kwargs):
-
-            merged_workspace = CpuGpuWorkspace.merge_applications(workspace)
-
-            studies = list()
-            for k in merged_workspace.iter_study_keys():
-                studies.append(merged_workspace.get_study(k))
-
-            self._studies = studies
+            self._studies = list(workspace.iter_studies())
             self._avg_fps_score_tracker = self.ScoreTracker()
             self._low_fps_score_tracker = self.ScoreTracker()
             self._price_offset = kwargs.get('price_offset', 0.0) # Adjust prices to account for the cost of the rest of the computer.
