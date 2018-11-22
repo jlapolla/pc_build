@@ -783,8 +783,11 @@ class FpsStudy:
     def get_application(self):
         return self._application
 
-    def get_point(self, cpu, gpu, default=None):
-        return self._data.get((cpu, gpu), default)
+    def has_point(self, key):
+        return key in self._data
+
+    def get_point(self, key, default=None):
+        return self._data.get(key, default)
 
     def as_dict(self):
         d = {}
@@ -1288,7 +1291,8 @@ class CpuGpuWorkspace:
             i_x = data_x.searchsorted(x)
             return 0 <= i_x and i_x < data_y.size and y == data_y[i_x]
 
-        def show_all(self, plotter):
+        def show_all(self, plotter, hlpoint=None):
+            # hlpoint stands for "highlight point".
             specs = [
                     {
                         'grid_spec': self._AVG_FPS_SPEC,
@@ -1301,6 +1305,9 @@ class CpuGpuWorkspace:
                 ]
 
             for study in sorted(self._studies, key=lambda k: k.get_application().get_name()):
+                if not ((hlpoint is None) or (study.has_point(hlpoint))):
+                    continue
+
                 figure = plotter.figure()
                 figure.suptitle(str(Application.Name(study.get_application())) + '\n(' + str(Application.SettingsName(study.get_application())) + ')')
 
@@ -1323,6 +1330,10 @@ class CpuGpuWorkspace:
                     axes.plot(*top_boundary_2D(x, y), 'r-')
                     float_scores = self._get_float_scores(study, spec['score_tracker'])
                     colorbar_mappable = axes.scatter(x, y, c=float_scores, cmap=cmap, vmin=0.0, vmax=1.0)
+
+                    if hlpoint is not None:
+                        hlgrid = Grid2D(points=[study.get_point(hlpoint)], **spec['grid_spec'])
+                        axes.plot(hlgrid.get_x() + self._price_offset, hlgrid.get_y(), 'go')
 
                     point_idx = 0
                     for point in study:
