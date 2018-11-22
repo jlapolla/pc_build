@@ -769,16 +769,22 @@ class FpsStudy:
     def __init__(self, **kwargs):
         self._source = kwargs['source']
         self._application = kwargs['application']
-        self._data = list(kwargs['data'])
+
+        self._data = dict()
+        for point in kwargs['data']:
+            self._data.setdefault((point.get_cpu(), point.get_gpu()), point)
 
     def __iter__(self):
-        return iter(self._data)
+        return iter(self._data.values())
 
     def get_source(self):
         return self._source
 
     def get_application(self):
         return self._application
+
+    def get_point(self, cpu, gpu, default=None):
+        return self._data.get((cpu, gpu), default)
 
     def as_dict(self):
         d = {}
@@ -1137,6 +1143,9 @@ class CpuGpuWorkspace:
 
     def iter_study_keys(self):
         return iter(self._study_dict.keys())
+
+    def iter_studies(self):
+        return iter(self._study_dict.values())
 
     def get_cpu(self, key, default=None):
         return self._cpu_dict.get(key, default)
