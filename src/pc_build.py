@@ -1147,6 +1147,43 @@ class CpuGpuWorkspace:
     def get_study(self, key, default=None):
         return self._study_dict.get(key, default)
 
+    @classmethod
+    def merge_applications(cls, workspace):
+        """Create a new workspace with studies from the same application merged.
+        """
+
+        # Merge studies with the same application.
+        d = dict()
+        for k in workspace.iter_study_keys():
+            application = k[1]
+            l = d.setdefault(application, [])
+            l.append(workspace.get_study(k))
+
+        study_dict = dict()
+        for studies in d.values():
+            study = None
+            if len(studies) == 1:
+                study = studies[0]
+            else:
+                study = MergedFpsStudy(studies=studies)
+            study_dict.setdefault((study.get_source(), study.get_application()), study)
+
+        # Copy CPU dictionary.
+        cpu_dict = dict()
+        for k in workspace.iter_cpu_keys():
+            cpu_dict[k] = workspace.get_cpu(k)
+
+        # Copy GPU dictionary.
+        gpu_dict = dict()
+        for k in workspace.iter_gpu_keys():
+            gpu_dict[k] = workspace.get_gpu(k)
+
+        new_workspace = cls()
+        new_workspace._cpu_dict = cpu_dict
+        new_workspace._gpu_dict = gpu_dict
+        new_workspace._study_dict = study_dict
+
+        return new_workspace
 
     class PriceExperiment:
 
@@ -1166,21 +1203,13 @@ class CpuGpuWorkspace:
 
         def __init__(self, workspace, **kwargs):
 
-            # Merge studies with the same application.
-            d = dict()
-            for study_key in workspace.iter_study_keys():
-                application = study_key[1]
-                l = d.setdefault((application,), [])
-                l.append(workspace.get_study(study_key))
+            merged_workspace = CpuGpuWorkspace.merge_applications(workspace)
 
-            merged_studies = []
-            for k, studies in d.items():
-                if len(studies) == 1:
-                    merged_studies.append(studies[0])
-                else:
-                    merged_studies.append(MergedFpsStudy(studies=studies))
+            studies = list()
+            for k in merged_workspace.iter_study_keys():
+                studies.append(merged_workspace.get_study(k))
 
-            self._studies = merged_studies
+            self._studies = studies
             self._avg_fps_score_tracker = self.ScoreTracker()
             self._low_fps_score_tracker = self.ScoreTracker()
             self._price_offset = kwargs.get('price_offset', 0.0) # Adjust prices to account for the cost of the rest of the computer.
