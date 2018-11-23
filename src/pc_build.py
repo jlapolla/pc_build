@@ -771,11 +771,17 @@ class FpsStudy:
         self._application = kwargs['application']
 
         self._data = dict()
+        self._length = 0
         for point in kwargs['data']:
-            self._data.setdefault((point.get_cpu(), point.get_gpu()), point)
+            selected_point = self._data.setdefault((point.get_cpu(), point.get_gpu()), point)
+            if selected_point is point:
+                self._length += 1
 
     def __iter__(self):
         return iter(self._data.values())
+
+    def __len__(self):
+        return self._length
 
     def get_source(self):
         return self._source
@@ -832,6 +838,18 @@ class FpsStudy:
                 application=study.get_application(),
                 data=points,
                 )
+
+    class SamplesFilter:
+        """Remove studies with few samples.
+        """
+
+        def __init__(self, threshold):
+            self._threshold = threshold
+
+        def do_filter(self, study):
+            if len(study) < self._threshold:
+                return None
+            return study
 
 
 class MergedFpsStudy(FpsStudy):
